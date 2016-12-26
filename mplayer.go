@@ -5,13 +5,15 @@ import (
 	"os/exec"
 )
 
+var Executable string = "mplayer"
+
 type MPlayer struct {
 	cmd   *exec.Cmd
 	stdin io.WriteCloser
 }
 
 func Start() (*MPlayer, error) {
-	cmd := exec.Command("mplayer", "-slave", "-quiet", "-idle", "-input", "nodefault-bindings", "-noconfig", "all")
+	cmd := exec.Command(Executable, "-slave", "-quiet", "-idle", "-input", "nodefault-bindings", "-noconfig", "all")
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return nil, err
