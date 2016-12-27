@@ -16,8 +16,8 @@ type MPlayer struct {
 	stdout *bufio.Reader
 }
 
-func Start() (*MPlayer, error) {
-	cmd := exec.Command(Executable, "-slave", "-quiet", "-idle", "-input", "nodefault-bindings", "-noconfig", "all", "-msglevel", "all=-1:global=5")
+func Start(args ...string) (*MPlayer, error) {
+	cmd := exec.Command(Executable, append([]string{"-slave", "-quiet", "-idle", "-input", "nodefault-bindings", "-noconfig", "all", "-msglevel", "all=-1:global=5"}, args...)...)
 	cmd.Env = append(os.Environ(), "MPLAYER_VERBOSE=-1")
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
