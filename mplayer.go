@@ -37,8 +37,8 @@ func Start() (*MPlayer, error) {
 	}, nil
 }
 
-func (m *MPlayer) Stop() error {
-	_, err := m.stdin.Write([]byte("quit\n"))
+func (m *MPlayer) Quit() error {
+	_, err := m.stdin.Write(quit)
 	if err != nil {
 		return err
 	}
@@ -55,17 +55,17 @@ func (m *MPlayer) Play(files ...string) error {
 }
 
 func (m *MPlayer) Next() error {
-	_, err := m.stdin.Write([]byte("pt_step 1 1\n"))
+	_, err := m.stdin.Write(next)
 	return err
 }
 
 func (m *MPlayer) Pause() error {
-	_, err := m.stdin.Write([]byte("pause\n"))
+	_, err := m.stdin.Write(pause)
 	return err
 }
 
 func (m *MPlayer) IsPaused() (bool, error) {
-	_, err := m.stdin.Write([]byte("pausing_keep_force get_property pause\n"))
+	_, err := m.stdin.Write(isPaused)
 	if err != nil {
 		return false, err
 	}
@@ -77,4 +77,9 @@ func (m *MPlayer) IsPaused() (bool, error) {
 		return true, nil
 	}
 	return false, nil
+}
+
+func (m *MPlayer) Stop() error {
+	_, err := m.stdin.Write(stop)
+	return err
 }
