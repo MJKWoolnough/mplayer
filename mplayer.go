@@ -1,42 +1,68 @@
 package mplayer
 
 import (
-	"bufio"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
+	"runtime"
 )
 
 var Executable string = "mplayer"
 
 type MPlayer struct {
-	cmd    *exec.Cmd
-	stdin  io.Writer
-	stdout *bufio.Reader
+	in    chan<- []byte
+	out   <-chan string
+	close chan struct{}
 }
 
 var params = []string{"-slave", "-quiet", "-idle", "-input", "nodefault-bindings", "-noconfig", "all", "-msglevel", "all=-1:global=5"}
 
-func Start(args ...string) (*MPlayer, error) {
-	cmd := exec.Command(Executable, append(params, args...)...)
-	cmd.Env = append(os.Environ(), "MPLAYER_VERBOSE=-1")
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		return nil, err
+func Start(args ...string) *MPlayer {
+	in := make(chan []byte)
+	out := make(chan string)
+	c := make(chan struct{})
+	go start(append(params, args...), in, out, c)
+	m := &MPlayer{
+		in:    in,
+		out:   out,
+		close: c,
 	}
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return nil, err
+	runtime.SetFinalizer(m, (*MPlayer).quit)
+	return m
+}
+
+func start(args []string, in <-chan []byte, out chan<- string, c <-chan struct{}) {
+	mplayer := exec.Command(Executable, args...)
+	env := append(os.Environ(), "MPLAYER_VERBOSE=-1")
+	mplayer.Env = env
+	stdin, _ := mplayer.StdinPipe()
+	stdout, _ := mplayer.StdoutPipe()
+	mplayer.Start()
+
+	for {
+		select {
+		case cmd := <-in:
+		case <-c:
+			close(out)
+			stdin.Write(quit)
+			mplayer.Wait()
+			return
+		}
 	}
-	if err = cmd.Start(); err != nil {
-		return nil, err
-	}
-	return &MPlayer{
-		cmd:    cmd,
-		stdin:  stdin,
-		stdout: bufio.NewReader(stdout),
-	}, nil
+}
+
+func (m *MPlayer) quit() {
+	close(m.in)
+	close(m.close)
+}
+
+func (m *MPlayer) play() error {
+	return nil
+}
+
+func (m *MPlayer) command(cmd []byte) string {
+	m.in <- cmd
+	return <-m.out
 }
 
 func (m *MPlayer) Quit() error {
