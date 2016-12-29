@@ -1,63 +1,83 @@
 package mplayer
 
 import (
+	"bufio"
 	"fmt"
-	"os"
+	"io"
 	"os/exec"
-	"runtime"
+	"sync"
 )
 
 var Executable string = "mplayer"
 
 type MPlayer struct {
-	in    chan<- []byte
-	out   <-chan string
-	close chan struct{}
+	cmd   *exec.Cmd
+	stdin io.Writer
+
+	lock     sync.RWMutex
+	err      error
+	playlist []string
+	pos      int
+	replies  [numQueries][]chan []byte
 }
 
-var params = []string{"-slave", "-quiet", "-idle", "-input", "nodefault-bindings", "-noconfig", "all", "-msglevel", "all=-1:global=5"}
+func (r *responder) Write(p []byte)
 
-func Start(args ...string) *MPlayer {
-	in := make(chan []byte)
-	out := make(chan string)
-	c := make(chan struct{})
-	go start(append(params, args...), in, out, c)
-	m := &MPlayer{
-		in:    in,
-		out:   out,
-		close: c,
+var params = []string{"-slave", "-quiet", "-idle", "-input", "nodefault-bindings", "-noconfig", "all", "-msglevel", "all=-1:global=5:cfgparser=7 "}
+
+func Start(args ...string) (*MPlayer, error) {
+	cmd := exec.Command(Executable, append(params, args)...)
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return nil, err
 	}
-	runtime.SetFinalizer(m, (*MPlayer).quit)
-	return m
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, err
+	}
+	err = cmd.Start()
+	if err != nil {
+		return nil, err
+	}
+
+	m := &MPlayer{
+		cmd:   cmd,
+		stdin: stdin,
+	}
+
+	br := bufio.NewReader(stdout)
+
+	// read config parser lines to get initial playlist if any
+
+	go m.loop(br)
+
+	return m, nil
 }
 
-func start(args []string, in <-chan []byte, out chan<- string, c <-chan struct{}) {
-	mplayer := exec.Command(Executable, args...)
-	env := append(os.Environ(), "MPLAYER_VERBOSE=-1")
-	mplayer.Env = env
-	stdin, _ := mplayer.StdinPipe()
-	stdout, _ := mplayer.StdoutPipe()
-	mplayer.Start()
-
+func (m *MPlayer) loop(stdout *bufio.Reader) {
 	for {
-		select {
-		case cmd := <-in:
-		case <-c:
-			close(out)
-			stdin.Write(quit)
-			mplayer.Wait()
+		d, err := stdout.ReadBytes('\n')
+		if err != nil {
+			m.lock.Lock()
+			m.err = err
+			m.lock.Unlock()
+			m.stdin.Write(quit)
 			return
 		}
+		if len(d) < 4 { // not a line we care about
+			continue
+		}
+		switch string(d[:4]) {
+		case "EOF ":
+			m.lock.Lock()
+			m.pos++
+			if m.pos > len(m.playlist) {
+				m.pos = -1
+			}
+			m.lock.Unlock()
+		case "ANS_":
+		}
 	}
-}
-
-func (m *MPlayer) quit() {
-	close(m.in)
-	close(m.close)
-}
-
-func (m *MPlayer) play() error {
-	return nil
 }
 
 func (m *MPlayer) command(cmd []byte) string {
