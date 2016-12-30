@@ -18,6 +18,7 @@ type MPlayer struct {
 	err      error
 	playlist []string
 	pos      int
+	loopAll  int
 	replies  [numQueries][]chan []byte
 }
 
@@ -70,12 +71,22 @@ func (m *MPlayer) loop(stdout *bufio.Reader) {
 		switch string(d[:4]) {
 		case "EOF ":
 			m.lock.Lock()
-			m.pos++
-			if m.pos > len(m.playlist) {
-				m.pos = -1
+			if m.pos == len(m.playlist) {
+				if m.loopAll != 0 {
+					m.pos = 0
+					// play list again
+					if m.loopAll > 0 {
+						m.loopAll--
+					}
+				} else {
+					m.pos = -1
+				}
+			} else {
+				m.pos++
 			}
 			m.lock.Unlock()
 		case "ANS_":
+			// response to query
 		}
 	}
 }
