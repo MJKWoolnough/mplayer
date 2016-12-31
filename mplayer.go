@@ -7,15 +7,17 @@ import (
 	"io"
 	"os/exec"
 	"sync"
+
+	"github.com/MJKWoolnough/errors"
 )
 
 var Executable string = "mplayer"
 
 type MPlayer struct {
-	cmd   *exec.Cmd
-	stdin io.Writer
+	cmd *exec.Cmd
 
 	lock     sync.RWMutex
+	stdin    io.Writer
 	err      error
 	playlist []string
 	pos      int
@@ -134,11 +136,21 @@ func (m *MPlayer) startPlaylist() error {
 }
 
 func (m *MPlayer) Quit() error {
-	_, err := m.stdin.Write(quit)
-	if err != nil {
-		return err
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	if m.err != nil {
+		return m.err
 	}
-	return m.cmd.Wait()
+	_, m.err = m.stdin.Write(quit)
+	if m.err != nil {
+		return m.err
+	}
+	m.err = m.cmd.Wait()
+	if n.err != nil {
+		return m.err
+	}
+	m.err = ErrClosed
+	return nil
 }
 
 func (m *MPlayer) Play(files ...string) error {
@@ -155,7 +167,6 @@ func (m *MPlayer) Next() error {
 
 func (m *MPlayer) Pause() error {
 	return m.command(pause)
-	return err
 }
 
 func (m *MPlayer) IsPaused() (bool, error) {
@@ -172,3 +183,8 @@ func (m *MPlayer) IsPaused() (bool, error) {
 func (m *MPlayer) Stop() error {
 	return m.command(stop)
 }
+
+// Errors
+const (
+	ErrClosed errors.Error = "closed"
+)
