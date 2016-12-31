@@ -2,6 +2,7 @@ package mplayer
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"os/exec"
@@ -24,7 +25,7 @@ type MPlayer struct {
 
 func (r *responder) Write(p []byte)
 
-var params = []string{"-slave", "-quiet", "-idle", "-input", "nodefault-bindings", "-noconfig", "all", "-msglevel", "all=-1:global=5:cfgparser=7 "}
+var params = []string{"-slave", "-quiet", "-idle", "-input", "nodefault-bindings", "-noconfig", "all", "-msglevel", "all=-1:global=4:cfgparser=7"}
 
 func Start(args ...string) (*MPlayer, error) {
 	cmd := exec.Command(Executable, append(params, args)...)
@@ -44,16 +45,21 @@ func Start(args ...string) (*MPlayer, error) {
 	m := &MPlayer{
 		cmd:   cmd,
 		stdin: stdin,
+		pos:   -1,
 	}
 
-	br := bufio.NewReader(stdout)
-
-	// read config parser lines to get initial playlist if any
-
-	go m.loop(br)
+	go m.loop(bufio.NewReader(stdout))
 
 	return m, nil
 }
+
+var (
+	playListAdded = []byte("Adding file ")
+	playListStart = []byte("Config pushed level is now 2")
+	playListNext  = []byte("Config poped level=2")
+	playListEnd   = []byte("Config poped level=1")
+	response      = []byte("ANS_")
+)
 
 func (m *MPlayer) loop(stdout *bufio.Reader) {
 	for {
@@ -65,35 +71,65 @@ func (m *MPlayer) loop(stdout *bufio.Reader) {
 			m.stdin.Write(quit)
 			return
 		}
-		if len(d) < 4 { // not a line we care about
-			continue
-		}
-		switch string(d[:4]) {
-		case "EOF ":
+		if bytes.Equal(d, playListStart) {
+			m.lock.Lock()
+			m.pos = 0
+			m.lock.Unlock()
+		} else if bytes.Equal(d, playListNext) {
 			m.lock.Lock()
 			if m.pos == len(m.playlist) {
-				if m.loopAll != 0 {
-					m.pos = 0
-					// play list again
-					if m.loopAll > 0 {
-						m.loopAll--
-					}
-				} else {
-					m.pos = -1
-				}
+				m.pos = 0
 			} else {
 				m.pos++
 			}
 			m.lock.Unlock()
-		case "ANS_":
-			// response to query
+		} else if bytes.Equal(d, playListEnd) {
+			m.lock.Lock()
+			if m.loopAll {
+				m.pos = 0
+				m.startPlaylist()
+			} else {
+				m.pos = -1
+			}
+			if err := m.lock.Unlock(); err != nil {
+				m.stdin.Write(quit)
+				m.lock.Unlock()
+				return
+			}
+		} else if bytes.HasPrefix(d, response) {
+
+		} else if bytes.HasPrefix(d, playListAdded) {
+			m.lock.Lock()
+			m.playlist = append(m.playlist, string(d[len(playListAdded):]))
+			m.lock.Unlock()
 		}
 	}
 }
 
-func (m *MPlayer) command(cmd []byte) string {
-	m.in <- cmd
-	return <-m.out
+func (m *MPlayer) command(cmd []byte) error {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	if m.err != nil {
+		return m.err
+	}
+	_, m.err = m.stdin.Write(cmd)
+	return m.err
+}
+
+func (m *MPlayer) query(query []byte, name string) (string, error) {
+	return "", nil
+}
+
+func (m *MPlayer) startPlaylist() error {
+	if m.err != nil {
+		return m.err
+	}
+	var buf bytes.Buffer
+	for n, file := range m.playlist {
+		fmt.Fprintf(buf, "loadfile %q %d\n", file, n)
+	}
+	_, m.err = m.stdin.Write(buf.Bytes())
+	return m.err
 }
 
 func (m *MPlayer) Quit() error {
@@ -105,40 +141,33 @@ func (m *MPlayer) Quit() error {
 }
 
 func (m *MPlayer) Play(files ...string) error {
-	for n, file := range files {
-		if _, err := fmt.Fprintf(m.stdin, "loadfile %q %d\n", file, n); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (m *MPlayer) Next() error {
-	_, err := m.stdin.Write(next)
+	m.lock.Lock()
+	m.playlist = append(m.playlist[:0], files...)
+	err := m.startPlaylist()
+	m.lock.Unlock()
 	return err
 }
 
+func (m *MPlayer) Next() error {
+	return m.command(next)
+}
+
 func (m *MPlayer) Pause() error {
-	_, err := m.stdin.Write(pause)
+	return m.command(pause)
 	return err
 }
 
 func (m *MPlayer) IsPaused() (bool, error) {
-	_, err := m.stdin.Write(isPaused)
+	ans, err := m.query(isPaused)
 	if err != nil {
 		return false, err
 	}
-	ans, err := m.stdout.ReadBytes('\n')
-	if err != nil {
-		return false, err
-	}
-	if string(ans) == "ANS_pause=yes\n" {
+	if ans == "yes\n" {
 		return true, nil
 	}
 	return false, nil
 }
 
 func (m *MPlayer) Stop() error {
-	_, err := m.stdin.Write(stop)
-	return err
+	return m.command(stop)
 }
