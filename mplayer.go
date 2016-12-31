@@ -96,6 +96,7 @@ func (m *MPlayer) loop(stdout *bufio.Reader) {
 				m.lock.Unlock()
 				return
 			}
+			m.lock.Unlock()
 		} else if bytes.HasPrefix(d, response) {
 
 		} else if bytes.HasPrefix(d, playListAdded) {
