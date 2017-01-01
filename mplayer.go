@@ -25,12 +25,10 @@ type MPlayer struct {
 	replies  [numQueries]chan<- string
 }
 
-func (r *responder) Write(p []byte)
-
 var params = []string{"-slave", "-quiet", "-idle", "-input", "nodefault-bindings", "-noconfig", "all", "-msglevel", "all=-1:global=4:cfgparser=7"}
 
 func Start(args ...string) (*MPlayer, error) {
-	cmd := exec.Command(Executable, append(params, args)...)
+	cmd := exec.Command(Executable, append(params, args...)...)
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return nil, err
@@ -50,7 +48,7 @@ func Start(args ...string) (*MPlayer, error) {
 		pos:   -1,
 	}
 
-	_, err := stdin.Write(isPaused)
+	_, err = stdin.Write(isPaused)
 	if err != nil {
 		cmd.Process.Kill()
 		return nil, ErrInvalidStdin
@@ -106,16 +104,17 @@ func (m *MPlayer) loop(stdout *bufio.Reader) {
 			m.lock.Unlock()
 		} else if bytes.Equal(d, playListEnd) {
 			m.lock.Lock()
-			if m.loopAll {
+			if m.loopAll >= 0 {
+				if m.loopAll > 0 {
+					m.loopAll--
+					if m.loopAll == 0 {
+						m.loopAll = -1
+					}
+				}
 				m.pos = 0
 				m.startPlaylist()
 			} else {
 				m.pos = -1
-			}
-			if err := m.lock.Unlock(); err != nil {
-				m.stdin.Write(quit)
-				m.lock.Unlock()
-				return
 			}
 			m.lock.Unlock()
 		} else if bytes.HasPrefix(d, response) {
@@ -177,7 +176,7 @@ func (m *MPlayer) query(query []byte, responseType int) (string, error) {
 	wc := make(chan string, 0)
 	m.replies[responseType] = wc
 	if ch == nil {
-		_, m.err = m.stdin.Write(cmd)
+		_, m.err = m.stdin.Write(query)
 	}
 	m.lock.Unlock()
 	data, ok := <-wc
@@ -203,7 +202,7 @@ func (m *MPlayer) startPlaylist() error {
 	}
 	var buf bytes.Buffer
 	for n, file := range m.playlist {
-		fmt.Fprintf(buf, "loadfile %q %d\n", file, n)
+		fmt.Fprintf(&buf, "loadfile %q %d\n", file, n)
 	}
 	_, m.err = m.stdin.Write(buf.Bytes())
 	return m.err
