@@ -22,7 +22,7 @@ type MPlayer struct {
 	playlist []string
 	pos      int
 	loopAll  int
-	replies  [numQueries][]chan []byte
+	replies  [numQueries]chan<- string
 }
 
 func (r *responder) Write(p []byte)
@@ -67,10 +67,7 @@ func (m *MPlayer) loop(stdout *bufio.Reader) {
 	for {
 		d, err := stdout.ReadBytes('\n')
 		if err != nil {
-			m.lock.Lock()
-			m.err = err
-			m.lock.Unlock()
-			m.stdin.Write(quit)
+			m.shutdown(err)
 			return
 		}
 		if bytes.Equal(d, playListStart) {
@@ -100,13 +97,44 @@ func (m *MPlayer) loop(stdout *bufio.Reader) {
 			}
 			m.lock.Unlock()
 		} else if bytes.HasPrefix(d, response) {
-
+			split := bytes.IndexByte(d, '=')
+			if split == -1 {
+				continue
+			}
+			responseType := -1
+			switch string(d[len(response):split]) {
+			case "pause":
+				responseType = 0
+			}
+			if responseType == -1 {
+				continue
+			}
+			m.lock.Lock()
+			rc := m.replies[responseType]
+			m.replies[responseType] = nil
+			m.lock.Unlock()
+			rc <- string(d[split+1 : len(d)-1])
+			close(rc)
 		} else if bytes.HasPrefix(d, playListAdded) {
 			m.lock.Lock()
 			m.playlist = append(m.playlist, string(d[len(playListAdded):]))
 			m.lock.Unlock()
 		}
 	}
+}
+
+func (m *MPlayer) shutdown(err error) {
+	m.lock.Lock()
+	if err != nil {
+		m.err = err
+	}
+	m.stdin.Write(quit)
+	for _, ch := range m.replies {
+		if ch != nil {
+			close(ch)
+		}
+	}
+	m.lock.Unlock()
 }
 
 func (m *MPlayer) command(cmd []byte) error {
@@ -119,8 +147,35 @@ func (m *MPlayer) command(cmd []byte) error {
 	return m.err
 }
 
-func (m *MPlayer) query(query []byte, name string) (string, error) {
-	return "", nil
+func (m *MPlayer) query(query []byte, responseType int) (string, error) {
+	m.lock.Lock()
+	if m.err != nil {
+		err := m.err
+		m.lock.Unlock()
+		return "", err
+	}
+	ch := m.replies[responseType]
+	wc := make(chan string, 0)
+	m.replies[responseType] = wc
+	if ch == nil {
+		_, m.err = m.stdin.Write(cmd)
+	}
+	m.lock.Unlock()
+	data, ok := <-wc
+	if !ok {
+		if ch != nil {
+			close(ch)
+		}
+		m.lock.RLock()
+		err := m.err
+		m.lock.RUnlock()
+		return "", err
+	}
+	if ch != nil {
+		ch <- data
+		close(ch)
+	}
+	return data, nil
 }
 
 func (m *MPlayer) startPlaylist() error {
