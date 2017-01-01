@@ -43,9 +43,10 @@ func Start(args ...string) (*MPlayer, error) {
 	}
 
 	m := &MPlayer{
-		cmd:   cmd,
-		stdin: stdin,
-		pos:   -1,
+		cmd:     cmd,
+		stdin:   stdin,
+		pos:     -1,
+		loopAll: -1,
 	}
 
 	_, err = stdin.Write(isPaused)
@@ -55,7 +56,6 @@ func Start(args ...string) (*MPlayer, error) {
 	}
 
 	br := bufio.NewReader(stdout)
-
 	for {
 		d, err := br.ReadBytes('\n')
 		if err != nil {
@@ -68,7 +68,6 @@ func Start(args ...string) (*MPlayer, error) {
 			break
 		}
 	}
-
 	go m.loop(br)
 
 	return m, nil
