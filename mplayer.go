@@ -126,7 +126,7 @@ func (m *MPlayer) loop(stdout *bufio.Reader) {
 			responseType := -1
 			switch string(d[len(response):split]) {
 			case "pause":
-				responseType = 0
+				responseType = queryPause
 			}
 			if responseType == -1 {
 				continue
@@ -230,11 +230,11 @@ func (m *MPlayer) Pause() error {
 }
 
 func (m *MPlayer) IsPaused() (bool, error) {
-	ans, err := m.query(isPaused)
+	ans, err := m.query(isPaused, queryPause)
 	if err != nil {
 		return false, err
 	}
-	if ans == "yes\n" {
+	if ans == "yes" {
 		return true, nil
 	}
 	return false, nil

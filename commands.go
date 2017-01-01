@@ -7,3 +7,9 @@ var (
 	isPaused = []byte("pausing_keep_force get_property pause\n")
 	next     = []byte("pt_step 1 1\n")
 )
+
+const (
+	queryPause = iota
+
+	numQueries
+)
