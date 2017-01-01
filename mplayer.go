@@ -50,16 +50,38 @@ func Start(args ...string) (*MPlayer, error) {
 		pos:   -1,
 	}
 
-	go m.loop(bufio.NewReader(stdout))
+	_, err := stdin.Write(isPaused)
+	if err != nil {
+		cmd.Process.Kill()
+		return nil, ErrInvalidStdin
+	}
+
+	br := bufio.NewReader(stdout)
+
+	for {
+		d, err := br.ReadBytes('\n')
+		if err != nil {
+			cmd.Process.Kill()
+			return nil, ErrInvalidStdout
+		}
+		if bytes.HasPrefix(d, playListAdded) {
+			m.playlist = append(m.playlist, string(d[len(playListAdded):]))
+		} else if bytes.Equal(d, configParsed) {
+			break
+		}
+	}
+
+	go m.loop(br)
 
 	return m, nil
 }
 
 var (
+	configParsed  = []byte("ANS_pause=no\n")
 	playListAdded = []byte("Adding file ")
-	playListStart = []byte("Config pushed level is now 2")
-	playListNext  = []byte("Config poped level=2")
-	playListEnd   = []byte("Config poped level=1")
+	playListStart = []byte("Config pushed level is now 2\n")
+	playListNext  = []byte("Config poped level=2\n")
+	playListEnd   = []byte("Config poped level=1\n")
 	response      = []byte("ANS_")
 )
 
@@ -115,15 +137,11 @@ func (m *MPlayer) loop(stdout *bufio.Reader) {
 			m.lock.Unlock()
 			rc <- string(d[split+1 : len(d)-1])
 			close(rc)
-		} else if bytes.HasPrefix(d, playListAdded) {
-			m.lock.Lock()
-			m.playlist = append(m.playlist, string(d[len(playListAdded):]))
-			m.lock.Unlock()
 		}
 	}
 }
 
-func (m *MPlayer) shutdown(err error) {
+func (m *MPlayer) shutdown(err error) error {
 	m.lock.Lock()
 	if err != nil {
 		m.err = err
@@ -135,6 +153,7 @@ func (m *MPlayer) shutdown(err error) {
 		}
 	}
 	m.lock.Unlock()
+	return m.cmd.Wait()
 }
 
 func (m *MPlayer) command(cmd []byte) error {
@@ -191,21 +210,7 @@ func (m *MPlayer) startPlaylist() error {
 }
 
 func (m *MPlayer) Quit() error {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-	if m.err != nil {
-		return m.err
-	}
-	_, m.err = m.stdin.Write(quit)
-	if m.err != nil {
-		return m.err
-	}
-	m.err = m.cmd.Wait()
-	if n.err != nil {
-		return m.err
-	}
-	m.err = ErrClosed
-	return nil
+	return m.shutdown(ErrClosed)
 }
 
 func (m *MPlayer) Play(files ...string) error {
@@ -241,5 +246,7 @@ func (m *MPlayer) Stop() error {
 
 // Errors
 const (
-	ErrClosed errors.Error = "closed"
+	ErrClosed        errors.Error = "closed"
+	ErrInvalidStdin  errors.Error = "invalid stdin stream"
+	ErrInvalidStdout errors.Error = "invalid stdout stream"
 )
