@@ -213,6 +213,7 @@ func (m *MPlayer) Quit() error {
 
 func (m *MPlayer) Play(files ...string) error {
 	m.lock.Lock()
+	m.loopAll = -1
 	m.playlist = append(m.playlist[:0], files...)
 	err := m.startPlaylist()
 	m.lock.Unlock()
