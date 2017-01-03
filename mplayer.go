@@ -207,42 +207,6 @@ func (m *MPlayer) startPlaylist() error {
 	return m.err
 }
 
-func (m *MPlayer) Quit() error {
-	return m.shutdown(ErrClosed)
-}
-
-func (m *MPlayer) Play(files ...string) error {
-	m.lock.Lock()
-	m.loopAll = -1
-	m.playlist = append(m.playlist[:0], files...)
-	err := m.startPlaylist()
-	m.lock.Unlock()
-	return err
-}
-
-func (m *MPlayer) Next() error {
-	return m.command(next)
-}
-
-func (m *MPlayer) Pause() error {
-	return m.command(pause)
-}
-
-func (m *MPlayer) IsPaused() (bool, error) {
-	ans, err := m.query(isPaused, queryPause)
-	if err != nil {
-		return false, err
-	}
-	if ans == "yes" {
-		return true, nil
-	}
-	return false, nil
-}
-
-func (m *MPlayer) Stop() error {
-	return m.command(stop)
-}
-
 // Errors
 const (
 	ErrClosed        errors.Error = "closed"
