@@ -1,5 +1,7 @@
 package mplayer
 
+import "github.com/MJKWoolnough/errors"
+
 var (
 	pause    = []byte("pause\n")
 	stop     = []byte("stop\n")
@@ -42,10 +44,16 @@ func (m *MPlayer) IsPaused() (bool, error) {
 	}
 	if ans == "yes" {
 		return true, nil
+	} else if ans == "no" {
+		return false, nil
 	}
-	return false, nil
+	return false, ErrInvalidResponse
 }
 
 func (m *MPlayer) Stop() error {
 	return m.command(stop)
 }
+
+var (
+	ErrInvalidResponse errors.Error = "mplayer returned an invalid response to the query"
+)
