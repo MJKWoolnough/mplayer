@@ -125,6 +125,20 @@ func (m *MPlayer) loop(stdout *bufio.Reader) {
 			switch string(d[len(response):split]) {
 			case "pause":
 				responseType = queryPause
+			case "META_ALBUM":
+				responseType = queryAlbum
+			case "META_ARTIST":
+				responseType = queryArtist
+			case "META_COMMENT":
+				responseType = queryComment
+			case "META_GENRE":
+				responseType = queryGenre
+			case "META_TITLE":
+				responseType = queryTitle
+			case "META_TRACK":
+				responseType = queryTrack
+			case "META_YEAR":
+				responseType = queryYear
 			}
 			if responseType == -1 {
 				continue

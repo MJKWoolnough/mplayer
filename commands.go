@@ -1,17 +1,35 @@
 package mplayer
 
-import "github.com/MJKWoolnough/errors"
+import (
+	"strings"
+
+	"github.com/MJKWoolnough/errors"
+)
 
 var (
-	pause    = []byte("pause\n")
-	stop     = []byte("stop\n")
-	quit     = []byte("quit\n")
-	isPaused = []byte("pausing_keep_force get_property pause\n")
-	next     = []byte("pt_step 1 1\n")
+	pause      = []byte("pause\n")
+	stop       = []byte("stop\n")
+	quit       = []byte("quit\n")
+	isPaused   = []byte("pausing_keep_force get_property pause\n")
+	next       = []byte("pt_step 1 1\n")
+	getAlbum   = []byte("get_meta_album\n")
+	getArtist  = []byte("get_meta_artist\n")
+	getComment = []byte("get_meta_comment\n")
+	getGenre   = []byte("get_meta_genre\n")
+	getTitle   = []byte("get_meta_title\n")
+	getTrack   = []byte("get_meta_track\n")
+	getYear    = []byte("get_meta_year\n")
 )
 
 const (
 	queryPause = iota
+	queryAlbum
+	queryArtist
+	queryComment
+	queryGenre
+	queryTitle
+	queryTrack
+	queryYear
 
 	numQueries
 )
@@ -52,6 +70,42 @@ func (m *MPlayer) IsPaused() (bool, error) {
 
 func (m *MPlayer) Stop() error {
 	return m.command(stop)
+}
+
+func (m *MPlayer) GetAlbum() (string, error) {
+	return m.getMD(getAlbum, queryAlbum)
+}
+
+func (m *MPlayer) GetArtist() (string, error) {
+	return m.getMD(getArtist, queryArtist)
+}
+
+func (m *MPlayer) GetComment() (string, error) {
+	return m.getMD(getComment, queryComment)
+}
+
+func (m *MPlayer) GetGenre() (string, error) {
+	return m.getMD(getGenre, queryGenre)
+}
+
+func (m *MPlayer) GetTitle() (string, error) {
+	return m.getMD(getTitle, queryTitle)
+}
+
+func (m *MPlayer) GetTrack() (string, error) {
+	return m.getMD(getTrack, queryTrack)
+}
+
+func (m *MPlayer) GetYear() (string, error) {
+	return m.getMD(getYear, queryYear)
+}
+
+func (m *MPlayer) getMD(q []byte, r int) (string, error) {
+	s, err := m.query(getAlbum, queryAlbum)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(s[1 : len(s)-1]), nil
 }
 
 var (
