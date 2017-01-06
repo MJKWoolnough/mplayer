@@ -12,6 +12,7 @@ var (
 	quit       = []byte("quit\n")
 	isPaused   = []byte("pausing_keep_force get_property pause\n")
 	next       = []byte("pt_step 1 1\n")
+	prev       = []byte("pt_step -1 1\n")
 	getAlbum   = []byte("get_meta_album\n")
 	getArtist  = []byte("get_meta_artist\n")
 	getComment = []byte("get_meta_comment\n")
@@ -49,6 +50,10 @@ func (m *MPlayer) Play(files ...string) error {
 
 func (m *MPlayer) Next() error {
 	return m.command(next)
+}
+
+func (m *MPlayer) Prev() error {
+	return m.command(prev)
 }
 
 func (m *MPlayer) Pause() error {
