@@ -7,19 +7,21 @@ import (
 )
 
 var (
-	pause      = []byte("pause\n")
-	stop       = []byte("stop\n")
-	quit       = []byte("quit\n")
-	isPaused   = []byte("pausing_keep_force get_property pause\n")
-	next       = []byte("pt_step 1 1\n")
-	prev       = []byte("pt_step -1 1\n")
-	getAlbum   = []byte("get_meta_album\n")
-	getArtist  = []byte("get_meta_artist\n")
-	getComment = []byte("get_meta_comment\n")
-	getGenre   = []byte("get_meta_genre\n")
-	getTitle   = []byte("get_meta_title\n")
-	getTrack   = []byte("get_meta_track\n")
-	getYear    = []byte("get_meta_year\n")
+	pause         = []byte("pause\n")
+	stop          = []byte("stop\n")
+	quit          = []byte("quit\n")
+	isPaused      = []byte("pausing_keep_force get_property pause\n")
+	next          = []byte("pt_step 1 1\n")
+	prev          = []byte("pt_step -1 1\n")
+	getAlbum      = []byte("get_meta_album\n")
+	getArtist     = []byte("get_meta_artist\n")
+	getComment    = []byte("get_meta_comment\n")
+	getGenre      = []byte("get_meta_genre\n")
+	getTitle      = []byte("get_meta_title\n")
+	getTrack      = []byte("get_meta_track\n")
+	getYear       = []byte("get_meta_year\n")
+	fullscreenOn  = []byte("vo_fullscreen 1")
+	fullscreenOff = []byte("vo_fullscreen 0")
 )
 
 const (
@@ -111,6 +113,13 @@ func (m *MPlayer) getMD(q []byte, r int) (string, error) {
 		return "", err
 	}
 	return strings.TrimSpace(s[1 : len(s)-1]), nil
+}
+
+func (m *MPlayer) Fullscreen(full bool) error {
+	if full {
+		return m.command(fullscreenOn)
+	}
+	return m.command(fullscreenOff)
 }
 
 var (
