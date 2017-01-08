@@ -1,6 +1,7 @@
 package mplayer
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/MJKWoolnough/errors"
@@ -20,8 +21,9 @@ var (
 	getTitle      = []byte("get_meta_title\n")
 	getTrack      = []byte("get_meta_track\n")
 	getYear       = []byte("get_meta_year\n")
-	fullscreenOn  = []byte("vo_fullscreen 1")
-	fullscreenOff = []byte("vo_fullscreen 0")
+	getLength     = []byte("get_time_length\n")
+	fullscreenOn  = []byte("vo_fullscreen 1\n")
+	fullscreenOff = []byte("vo_fullscreen 0\n")
 )
 
 const (
@@ -33,6 +35,7 @@ const (
 	queryTitle
 	queryTrack
 	queryYear
+	queryLength
 
 	numQueries
 )
@@ -120,6 +123,14 @@ func (m *MPlayer) Fullscreen(full bool) error {
 		return m.command(fullscreenOn)
 	}
 	return m.command(fullscreenOff)
+}
+
+func (m *MPlayer) GetTrackLength() (float64, error) {
+	s, err := m.query(getLength, queryLength)
+	if err != nil {
+		return 0, nil
+	}
+	return strconv.ParseFloat(s, 64)
 }
 
 var (

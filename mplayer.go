@@ -139,6 +139,8 @@ func (m *MPlayer) loop(stdout *bufio.Reader) {
 				responseType = queryTrack
 			case "META_YEAR":
 				responseType = queryYear
+			case "LENGTH":
+				responseType = queryLength
 			}
 			if responseType == -1 {
 				continue
