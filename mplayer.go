@@ -141,6 +141,8 @@ func (m *MPlayer) loop(stdout *bufio.Reader) {
 				responseType = queryYear
 			case "LENGTH":
 				responseType = queryLength
+			case "mute":
+				responeType = queryMute
 			}
 			if responseType == -1 {
 				continue

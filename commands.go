@@ -24,6 +24,9 @@ var (
 	getLength     = []byte("get_time_length\n")
 	fullscreenOn  = []byte("vo_fullscreen 1\n")
 	fullscreenOff = []byte("vo_fullscreen 0\n")
+	muteOn        = []byte("mute 1\n")
+	muteOff       = []byte("mute 0\n")
+	isMuted       = []byte("get_property mute\n")
 )
 
 const (
@@ -36,6 +39,7 @@ const (
 	queryTrack
 	queryYear
 	queryLength
+	queryMuted
 
 	numQueries
 )
@@ -131,6 +135,26 @@ func (m *MPlayer) GetTrackLength() (float64, error) {
 		return 0, nil
 	}
 	return strconv.ParseFloat(s, 64)
+}
+
+func (m *MPlayer) Mute(on bool) error {
+	if on {
+		return m.command(muteOn)
+	}
+	return m.command(muteOff)
+}
+
+func (m *MPlayer) Muted() (bool, error) {
+	s, err := s.query(isMuted, queryMuted)
+	if err != nil {
+		return false, err
+	}
+	if s == "on" {
+		return true, nil
+	} else if s == "off" {
+		return false, nil
+	}
+	return false, ErrInvalidResponse
 }
 
 var (
