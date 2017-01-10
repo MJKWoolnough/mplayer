@@ -3,6 +3,7 @@ package mplayer
 import (
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/MJKWoolnough/errors"
 )
@@ -129,12 +130,16 @@ func (m *MPlayer) Fullscreen(full bool) error {
 	return m.command(fullscreenOff)
 }
 
-func (m *MPlayer) GetTrackLength() (float64, error) {
+func (m *MPlayer) GetTrackLength() (time.Duration, error) {
 	s, err := m.query(getLength, queryLength)
 	if err != nil {
 		return 0, nil
 	}
-	return strconv.ParseFloat(s, 64)
+	f, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return 0, err
+	}
+	return time.Duration(f * 1000 * 1000 * 1000), nil
 }
 
 func (m *MPlayer) Mute(on bool) error {
