@@ -1,6 +1,8 @@
 package mplayer
 
 import (
+	"fmt"
+	"io"
 	"strconv"
 	"strings"
 	"time"
@@ -160,6 +162,27 @@ func (m *MPlayer) Muted() (bool, error) {
 		return false, nil
 	}
 	return false, ErrInvalidResponse
+}
+
+func (m *MPlayer) Seek(t time.Duration) error {
+	return m.commandFunc(func(w io.Writer) error {
+		_, err := fmt.Fprintf(w, "seek %.2f 0\n", float32(t)/1000/1000/1000)
+		return err
+	})
+}
+
+func (m *MPlayer) SeekPercent(p float32) error {
+	return m.commandFunc(func(w io.Writer) error {
+		_, err := fmt.Fprintf(w, "seek %.2f 1\n", p)
+		return err
+	})
+}
+
+func (m *MPlayer) SeekToTime(t time.Duration) error {
+	return m.commandFunc(func(w io.Writer) error {
+		_, err := fmt.Fprintf(w, "seek %.2f 2\n", float32(t)/1000/1000/1000)
+		return err
+	})
 }
 
 var (

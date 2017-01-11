@@ -182,6 +182,16 @@ func (m *MPlayer) command(cmd []byte) error {
 	return m.err
 }
 
+func (m *MPlayer) commandFunc(fn func(io.Writer) error) error {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	if m.err != nil {
+		return m.err
+	}
+	m.err = fn(m.stdin)
+	return m.err
+}
+
 func (m *MPlayer) query(query []byte, responseType int) (string, error) {
 	m.lock.Lock()
 	if m.err != nil {
