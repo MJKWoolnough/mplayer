@@ -30,6 +30,7 @@ var (
 	muteOn        = []byte("mute 1\n")
 	muteOff       = []byte("mute 0\n")
 	isMuted       = []byte("get_property mute\n")
+	getVolume     = []byte("get_property volume\n")
 )
 
 const (
@@ -43,6 +44,7 @@ const (
 	queryYear
 	queryLength
 	queryMuted
+	queryVolume
 
 	numQueries
 )
@@ -162,6 +164,28 @@ func (m *MPlayer) Muted() (bool, error) {
 		return false, nil
 	}
 	return false, ErrInvalidResponse
+}
+
+func (m *MPlayer) GetVolume() (float64, error) {
+	v, err := m.query(getVolume, queryVolume)
+	if err != nil {
+		return 0, err
+	}
+	return strconv.ParseFloat(v, 64)
+}
+
+func (m *MPlayer) Volume(v float64) error {
+	return m.commandFunc(func(w io.Writer) error {
+		_, err := fmt.Fprintf(w, "volume %.2f 1\n", v)
+		return err
+	})
+}
+
+func (m *MPlayer) VolumeAdjust(v float64) error {
+	return m.commandFunc(func(w io.Writer) error {
+		_, err := fmt.Fprintf(w, "volume %.2f 0\n", v)
+		return err
+	})
 }
 
 func (m *MPlayer) Seek(t time.Duration) error {
