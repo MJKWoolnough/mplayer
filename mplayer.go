@@ -184,13 +184,13 @@ func (m *MPlayer) command(cmd []byte) error {
 	return m.err
 }
 
-func (m *MPlayer) commandFunc(fn func(io.Writer) error) error {
+func (m *MPlayer) commandWrite(f string, args ...interface{}) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	if m.err != nil {
 		return m.err
 	}
-	m.err = fn(m.stdin)
+	_, m.err = fmt.Fprintf(m.stdin, f, args...)
 	return m.err
 }
 
