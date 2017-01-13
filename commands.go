@@ -192,6 +192,20 @@ func (m *MPlayer) SeekToTime(t time.Duration) error {
 	return m.commandWrite("seek %.2f 2\n", float32(t)/1000/1000/1000)
 }
 
+func (m *MPlayer) GetPosition() int {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	return m.pos
+}
+
+func (m *MPlayer) GetPlaylist() []string {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	pl := make([]string, len(m.playlist))
+	copy(pl, m.playlist)
+	return pl
+}
+
 var (
 	ErrInvalidResponse errors.Error = "mplayer returned an invalid response to the query"
 )
