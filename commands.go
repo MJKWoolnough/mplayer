@@ -152,7 +152,7 @@ func (m *MPlayer) Mute(on bool) error {
 }
 
 func (m *MPlayer) Muted() (bool, error) {
-	s, err := s.query(isMuted, queryMuted)
+	s, err := m.query(isMuted, queryMuted)
 	if err != nil {
 		return false, err
 	}

@@ -142,7 +142,7 @@ func (m *MPlayer) loop(stdout *bufio.Reader) {
 			case "LENGTH":
 				responseType = queryLength
 			case "mute":
-				responseType = queryMute
+				responseType = queryMuted
 			case "volume":
 				responseType = queryVolume
 			}
