@@ -1,4 +1,4 @@
-package mplayer
+package mplayer // import "vimagination.zapto.org/mplayer"
 
 import (
 	"bufio"
@@ -8,7 +8,7 @@ import (
 	"os/exec"
 	"sync"
 
-	"github.com/MJKWoolnough/errors"
+	"vimagination.zapto.org/errors"
 )
 
 var Executable string = "mplayer"
